@@ -1,0 +1,14 @@
+{
+  "env": {
+    "INTERVAL": 2000,
+    "DUMP_FOLDER_PATH": "../../nerve-center/memory/dump.bkp"
+  },
+  "env_test": {
+    "INTERVAL": 2000,
+    "DUMP_FOLDER_PATH": "../../nerve-center/memory/dump.bkp"
+  },
+  "env_production": {
+    "INTERVAL": 2000,
+    "DUMP_FOLDER_PATH": "../../nerve-center/memory/dump.bkp"
+  }
+}
