@@ -42,9 +42,9 @@ function getDumpList(filesToRm) {
     const dumpPwd = path.resolve(folderPath, dump);
     const dumpStats = fs.statSync(dumpPwd);
     const dumpSize = dumpStats.size;
-    if (dumpSize === 0) throw new Error('out of memory');
+    // if (dumpSize === 0) throw new Error('out of memory');
     const date = moment(dump, "[dump_]YYYY-MM-DD_HH-mm-ss[.db]", true);
-    if (date.isValid()) { files.push({ pwd: dumpPwd, date }); }
+    if (date.isValid()) { files.push({ pwd: dumpPwd, date, dumpSize }); }
     else { filesToRm.push(dumpPwd); }
   }
   files.sort(sortByDateFct);
@@ -102,8 +102,16 @@ function keepOneEachMonth(filesToRm, beforeLastMonthLst) {
 function main() {
   console.log("Start cleaning folderPath", moment());
   try {
-    const filesToRm = [];
-    const files = getDumpList(filesToRm);
+    let filesToRm = [];
+    const files = getDumpList(filesToRm).reduce((acc, curr) => {
+      if (curr.dumpSize === 0) {
+        filesToRm.push(curr.pwd);
+      } else { acc.push(curr); }
+      return acc;
+    }, []);
+    for (const fileToRm of filesToRm) {
+      fs.unlinkSync(fileToRm);
+    }
     const lastMonthLst = [];
     const beforeLastMonthLst = [];
     const lastMonth = moment().subtract(1, 'month');
@@ -117,6 +125,10 @@ function main() {
       }
     }
     keepOneEachDay(filesToRm, lastMonthLst);
+    for (const fileToRm of filesToRm) {
+      fs.unlinkSync(fileToRm);
+    }
+    filesToRm = [];
     keepOneEachMonth(filesToRm, beforeLastMonthLst);
     for (const fileToRm of filesToRm) {
       fs.unlinkSync(fileToRm);
@@ -124,6 +136,7 @@ function main() {
   } catch (e) {
     console.error(e);
   }
+  console.log("done");
 }
 
 main();
