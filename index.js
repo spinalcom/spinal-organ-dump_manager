@@ -51,6 +51,10 @@ function getDumpList(filesToRm) {
   return files;
 }
 
+function keepOneEachSixHours(filesToRm, lastDayLst) {
+
+}
+
 function keepOneEachDay(filesToRm, lastMonthLst) {
   const days = {};
   for (const file of lastMonthLst) {
@@ -110,20 +114,34 @@ function main() {
       return acc;
     }, []);
     for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
+      console.log('Removing because empty', fileToRm);
+      // fs.unlinkSync(fileToRm);
     }
+    const last24HLst = [];
     const lastMonthLst = [];
     const beforeLastMonthLst = [];
+    const last24H = moment.subtract(1, 'days');
     const lastMonth = moment().subtract(1, 'month');
     for (let idx = 0; idx < files.length; idx++) {
       const file = files[idx];
-      if (idx < 24) continue; // last 24
+      if (idx < 6) continue; // last 6
       if (file.date.isAfter(lastMonth)) {
+        if(file.data.isAfter(last24H)) {
+          last24HLst.push(file);
+        } else {
         lastMonthLst.push(file);
+        }
       } else {
         beforeLastMonthLst.push(file);
       }
     }
+
+
+    keepOneEachSixHours(filesToRm, lastMonthLst);
+    for (const fileToRm of filesToRm) {
+      fs.unlinkSync(fileToRm);
+    }
+    filesToRm = [];
     keepOneEachDay(filesToRm, lastMonthLst);
     for (const fileToRm of filesToRm) {
       fs.unlinkSync(fileToRm);
@@ -140,5 +158,5 @@ function main() {
 }
 
 main();
-const job = new CronJob('00 00 00 * * *', main); // at_midnight
+const job = new CronJob('* * * * *', main); // at_midnight
 job.start();
