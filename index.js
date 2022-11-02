@@ -38,125 +38,48 @@ function getDumpList(filesToRm) {
   const dumps = fs.readdirSync(folderPath);
   const files = [];
   for (const dump of dumps) {
-    // exemple dump_2020-09-01_05-47-49.db
     const dumpPwd = path.resolve(folderPath, dump);
     const dumpStats = fs.statSync(dumpPwd);
     const dumpSize = dumpStats.size;
-    // if (dumpSize === 0) throw new Error('out of memory');
     const date = moment(dump, "[dump_]YYYY-MM-DD_HH-mm-ss[.db]", true);
     if (date.isValid()) { files.push({ pwd: dumpPwd, date, dumpSize }); }
-    else { filesToRm.push(dumpPwd); }
+    else { filesToRm.push(dumpPwd);}
   }
   files.sort(sortByDateFct);
   return files;
 }
 
-function keepOneEachSixHours(filesToRm, lastDayLst) {
-
-}
-
-function keepOneEachDay(filesToRm, lastMonthLst) {
-  const days = {};
-  for (const file of lastMonthLst) {
-    const dayNbr = file.date.dayOfYear();
-    if (typeof days[dayNbr] === "undefined") days[dayNbr] = [];
-    days[dayNbr].push(file);
-  }
-  for (const dayNbr in days) {
-    if (days.hasOwnProperty(dayNbr)) {
-      const files = days[dayNbr];
-      for (let idx = 1; idx < files.length; idx++) {
-        if (Math.round(files.length / 2) === idx) {
-          continue;
-        }
-        filesToRm.push(files[idx].pwd);
-      }
-    }
-  }
-}
-
-function keepOneEachMonth(filesToRm, beforeLastMonthLst) {
-  const files = {};
-  for (const file of beforeLastMonthLst) {
-    const year = file.date.year();
-    const month = file.date.month();
-    if (typeof files[year] === "undefined") files[year] = {};
-    if (typeof files[year][month] === "undefined") files[year][month] = [];
-    files[year][month].push(file);
-  }
-
-  for (const yearKey in files) {
-    if (files.hasOwnProperty(yearKey)) {
-      const year = files[yearKey];
-      for (const monthKey in year) {
-        if (year.hasOwnProperty(monthKey)) {
-          const month = year[monthKey];
-          for (let idx = 1; idx < month.length; idx++) {
-            if (Math.round(month.length / 2) === idx) {
-              continue;
-            }
-            filesToRm.push(month[idx].pwd);
-          }
-        }
-      }
-    }
-  }
+function handling(l, rl, s, e, p) {
+  let tempList = l.filter(f => f.date.isBetween(moment().subtract(s, p), moment().subtract(e, p)));
+  l = l.slice(tempList.length);
+  tempList.pop();
+  rl = rl.concat(tempList);
+  return [l, rl];
 }
 
 function main() {
-  console.log("Start cleaning folderPath", moment());
-  try {
-    let filesToRm = [];
-    const files = getDumpList(filesToRm).reduce((acc, curr) => {
-      if (curr.dumpSize === 0) {
-        filesToRm.push(curr.pwd);
-      } else { acc.push(curr); }
-      return acc;
-    }, []);
-    for (const fileToRm of filesToRm) {
-      console.log('Removing because empty', fileToRm);
-      // fs.unlinkSync(fileToRm);
-    }
-    const last24HLst = [];
-    const lastMonthLst = [];
-    const beforeLastMonthLst = [];
-    const last24H = moment.subtract(1, 'days');
-    const lastMonth = moment().subtract(1, 'month');
-    for (let idx = 0; idx < files.length; idx++) {
-      const file = files[idx];
-      if (idx < 6) continue; // last 6
-      if (file.date.isAfter(lastMonth)) {
-        if(file.data.isAfter(last24H)) {
-          last24HLst.push(file);
-        } else {
-        lastMonthLst.push(file);
-        }
-      } else {
-        beforeLastMonthLst.push(file);
-      }
-    }
-
-
-    keepOneEachSixHours(filesToRm, lastMonthLst);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-    filesToRm = [];
-    keepOneEachDay(filesToRm, lastMonthLst);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-    filesToRm = [];
-    keepOneEachMonth(filesToRm, beforeLastMonthLst);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-  } catch (e) {
-    console.error(e);
+  let fileList = [];
+  let filesToRm = [];
+  fileList = getDumpList([]);
+  // Last 6 hours
+  fileList = fileList.slice(6);
+  // Last 24 hours
+  [fileList, filesToRm] = handling(fileList, filesToRm, 12, 6, 'hours');
+  [fileList, filesToRm] = handling(fileList, filesToRm, 18, 12, 'hours');
+  [fileList, filesToRm] = handling(fileList, filesToRm, 24, 18, 'hours');
+  // Last month
+  for (let i=1; i<31; i++){
+    [fileList, filesToRm] = handling(fileList, filesToRm, i+1, i, 'days');
   }
-  console.log("done");
+  // Rest of files
+  let m = 1;
+  while (fileList.length!=0){
+    [fileList, filesToRm] = handling(fileList, filesToRm, m+1, m, 'months');
+    m = m+1;
+  }
+  filesToRm.forEach(e => fs.unlinkSync(e.pwd));
 }
 
 main();
-const job = new CronJob('* * * * *', main); // at_midnight
+const job = new CronJob('0 */6 * * *', main); // At minute 0 past every 6th hour (00:00, 06:00, 12:00, 18:00)
 job.start();
