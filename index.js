@@ -34,19 +34,18 @@ function sortByDateFct(a, b) {
   return b.date.unix() - a.date.unix();
 }
 
-function getDumpList(filesToRm) {
+function getDumpList() {
   const dumps = fs.readdirSync(folderPath);
   const files = [];
   for (const dump of dumps) {
     const dumpPwd = path.resolve(folderPath, dump);
     const dumpStats = fs.statSync(dumpPwd);
     const dumpSize = dumpStats.size;
+    if(dumpSize===0) {fs.unlinkSync(dumpPwd); continue;}
     const date = moment(dump, "[dump_]YYYY-MM-DD_HH-mm-ss[.db]", true);
-    if (date.isValid()) { files.push({ pwd: dumpPwd, date, dumpSize }); }
-    else { filesToRm.push(dumpPwd);}
+    if (date.isValid()) files.push({ pwd: dumpPwd, date, dumpSize });
   }
-  files.sort(sortByDateFct);
-  return files;
+  return files.sort(sortByDateFct);
 }
 
 function handler(l, rl, s, e, p) {
@@ -58,30 +57,23 @@ function handler(l, rl, s, e, p) {
 }
 
 function main() {
+  console.log(`Start cleaning ${folderPath} at ${moment()}`);
+  let m = 0;
   let fileList = [];
   let filesToRm = [];
-  fileList = getDumpList([]);
-  // Last 6 hours
+  fileList = getDumpList();
   fileList = fileList.slice(6);
-  // Last 24 hours
-  [fileList, filesToRm] = handler(fileList, filesToRm, 12, 6, 'hours');
-  [fileList, filesToRm] = handler(fileList, filesToRm, 18, 12, 'hours');
-  [fileList, filesToRm] = handler(fileList, filesToRm, 24, 18, 'hours');
-  // Last week
-  for (let i=1; i<7; i++){
+  for (let i=1; i<4; i++)
+    [fileList, filesToRm] = handler(fileList, filesToRm, (i+1)*6, i*6, 'hours');
+  for (let i=1; i<7; i++)
     [fileList, filesToRm] = handler(fileList, filesToRm, i+1, i, 'days');
-  }
-  // Rest of files
-  let m = 0;
-  while (fileList.length!=0){
-    [fileList, filesToRm] = handler(fileList, filesToRm, m+1, m, 'months');
-    m = m+1;
-  }
-  for (let fIndex=0; fIndex<filesToRm.length; fIndex++)
-   fs.unlinkSync(filesToRm[fIndex].pwd);
+  while (fileList.length!=0)
+    [fileList, filesToRm] = handler(fileList, filesToRm, m+1, m++, 'months');
+  for (let i=0; i<filesToRm.length; i++)
+    fs.unlinkSync(filesToRm[i].pwd);
   console.log('done');
 }
 
 main();
-const job = new CronJob('0 */6 * * *', main); // At minute 0 past every 6th hour (00:00, 06:00, 12:00, 18:00)
+const job = new CronJob('0 */6 * * *', main); // 00:00, 06:00, 12:00, 18:00
 job.start();
