@@ -34,111 +34,46 @@ function sortByDateFct(a, b) {
   return b.date.unix() - a.date.unix();
 }
 
-function getDumpList(filesToRm) {
+function getDumpList() {
   const dumps = fs.readdirSync(folderPath);
   const files = [];
   for (const dump of dumps) {
-    // exemple dump_2020-09-01_05-47-49.db
     const dumpPwd = path.resolve(folderPath, dump);
     const dumpStats = fs.statSync(dumpPwd);
     const dumpSize = dumpStats.size;
-    // if (dumpSize === 0) throw new Error('out of memory');
+    if(dumpSize===0) {fs.unlinkSync(dumpPwd); continue;}
     const date = moment(dump, "[dump_]YYYY-MM-DD_HH-mm-ss[.db]", true);
-    if (date.isValid()) { files.push({ pwd: dumpPwd, date, dumpSize }); }
-    else { filesToRm.push(dumpPwd); }
+    if (date.isValid()) files.push({ pwd: dumpPwd, date, dumpSize });
   }
-  files.sort(sortByDateFct);
-  return files;
+  return files.sort(sortByDateFct);
 }
 
-function keepOneEachDay(filesToRm, lastMonthLst) {
-  const days = {};
-  for (const file of lastMonthLst) {
-    const dayNbr = file.date.dayOfYear();
-    if (typeof days[dayNbr] === "undefined") days[dayNbr] = [];
-    days[dayNbr].push(file);
-  }
-  for (const dayNbr in days) {
-    if (days.hasOwnProperty(dayNbr)) {
-      const files = days[dayNbr];
-      for (let idx = 1; idx < files.length; idx++) {
-        if (Math.round(files.length / 2) === idx) {
-          continue;
-        }
-        filesToRm.push(files[idx].pwd);
-      }
-    }
-  }
-}
-
-function keepOneEachMonth(filesToRm, beforeLastMonthLst) {
-  const files = {};
-  for (const file of beforeLastMonthLst) {
-    const year = file.date.year();
-    const month = file.date.month();
-    if (typeof files[year] === "undefined") files[year] = {};
-    if (typeof files[year][month] === "undefined") files[year][month] = [];
-    files[year][month].push(file);
-  }
-
-  for (const yearKey in files) {
-    if (files.hasOwnProperty(yearKey)) {
-      const year = files[yearKey];
-      for (const monthKey in year) {
-        if (year.hasOwnProperty(monthKey)) {
-          const month = year[monthKey];
-          for (let idx = 1; idx < month.length; idx++) {
-            if (Math.round(month.length / 2) === idx) {
-              continue;
-            }
-            filesToRm.push(month[idx].pwd);
-          }
-        }
-      }
-    }
-  }
+function handler(l, rl, s, e, p) {
+  let tempList = l.filter(f => f.date.isBetween(moment().subtract(s, p), moment().subtract(e, p)));
+  l = l.slice(tempList.length);
+  tempList.pop();
+  rl = rl.concat(tempList);
+  return [l, rl];
 }
 
 function main() {
-  console.log("Start cleaning folderPath", moment());
-  try {
-    let filesToRm = [];
-    const files = getDumpList(filesToRm).reduce((acc, curr) => {
-      if (curr.dumpSize === 0) {
-        filesToRm.push(curr.pwd);
-      } else { acc.push(curr); }
-      return acc;
-    }, []);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-    const lastMonthLst = [];
-    const beforeLastMonthLst = [];
-    const lastMonth = moment().subtract(1, 'month');
-    for (let idx = 0; idx < files.length; idx++) {
-      const file = files[idx];
-      if (idx < 24) continue; // last 24
-      if (file.date.isAfter(lastMonth)) {
-        lastMonthLst.push(file);
-      } else {
-        beforeLastMonthLst.push(file);
-      }
-    }
-    keepOneEachDay(filesToRm, lastMonthLst);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-    filesToRm = [];
-    keepOneEachMonth(filesToRm, beforeLastMonthLst);
-    for (const fileToRm of filesToRm) {
-      fs.unlinkSync(fileToRm);
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  console.log("done");
+  console.log(`Start cleaning ${folderPath} at ${moment()}`);
+  let m = 0;
+  let fileList = [];
+  let filesToRm = [];
+  fileList = getDumpList();
+  fileList = fileList.slice(6);
+  for (let i=1; i<4; i++)
+    [fileList, filesToRm] = handler(fileList, filesToRm, (i+1)*6, i*6, 'hours');
+  for (let i=1; i<7; i++)
+    [fileList, filesToRm] = handler(fileList, filesToRm, i+1, i, 'days');
+  while (fileList.length!=0)
+    [fileList, filesToRm] = handler(fileList, filesToRm, m+1, m++, 'months');
+  for (let i=0; i<filesToRm.length; i++)
+    fs.unlinkSync(filesToRm[i].pwd);
+  console.log('done');
 }
 
 main();
-const job = new CronJob('00 00 00 * * *', main); // at_midnight
+const job = new CronJob('0 */6 * * *', main); // 00:00, 06:00, 12:00, 18:00
 job.start();
