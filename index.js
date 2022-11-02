@@ -49,7 +49,7 @@ function getDumpList(filesToRm) {
   return files;
 }
 
-function handling(l, rl, s, e, p) {
+function handler(l, rl, s, e, p) {
   let tempList = l.filter(f => f.date.isBetween(moment().subtract(s, p), moment().subtract(e, p)));
   l = l.slice(tempList.length);
   tempList.pop();
@@ -64,20 +64,22 @@ function main() {
   // Last 6 hours
   fileList = fileList.slice(6);
   // Last 24 hours
-  [fileList, filesToRm] = handling(fileList, filesToRm, 12, 6, 'hours');
-  [fileList, filesToRm] = handling(fileList, filesToRm, 18, 12, 'hours');
-  [fileList, filesToRm] = handling(fileList, filesToRm, 24, 18, 'hours');
-  // Last month
-  for (let i=1; i<31; i++){
-    [fileList, filesToRm] = handling(fileList, filesToRm, i+1, i, 'days');
+  [fileList, filesToRm] = handler(fileList, filesToRm, 12, 6, 'hours');
+  [fileList, filesToRm] = handler(fileList, filesToRm, 18, 12, 'hours');
+  [fileList, filesToRm] = handler(fileList, filesToRm, 24, 18, 'hours');
+  // Last week
+  for (let i=1; i<7; i++){
+    [fileList, filesToRm] = handler(fileList, filesToRm, i+1, i, 'days');
   }
   // Rest of files
-  let m = 1;
+  let m = 0;
   while (fileList.length!=0){
-    [fileList, filesToRm] = handling(fileList, filesToRm, m+1, m, 'months');
+    [fileList, filesToRm] = handler(fileList, filesToRm, m+1, m, 'months');
     m = m+1;
   }
-  filesToRm.forEach(e => fs.unlinkSync(e.pwd));
+  for (let fIndex=0; fIndex<filesToRm.length; fIndex++)
+   fs.unlinkSync(filesToRm[fIndex].pwd);
+  console.log('done');
 }
 
 main();
