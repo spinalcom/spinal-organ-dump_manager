@@ -11,8 +11,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "spinal-core-system": "git+https://github.com/spinalcom/spinal-core-system.git",
     "cron": "^1.8.2",
-    "moment": "^2.27.0"
+    "dotenv": "^16.4.1",
+    "moment": "^2.27.0",
+    "spinal-core-system": "git+https://github.com/spinalcom/spinal-core-system.git"
   }
 }
