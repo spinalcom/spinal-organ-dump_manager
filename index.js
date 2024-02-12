@@ -29,26 +29,31 @@ const CronJob = require('cron').CronJob;
 const https = require('https');
 const http = require('http');
 
-const dumpBkpFolderPath = require("./config.js").dumpBkpFolderPath;
 const dumpFilePath = require("./config.js").dumpFilePath;
 const dumpFilePath2 = require("./config.js").dumpFilePath2;
 const monitoringHost= require("./config.js").monitoringHost;
 const monitoringApiPath = require("./config.js").monitoringApiPath;
 const tokenBosRegister = require("./config.js").tokenBosRegister;
-const sizeVariationThreshold = require("./config.js").sizeVariationThreshold;
 
 const folderPath = path.resolve(dumpBkpFolderPath);
 const currentDbFilePath = path.resolve(dumpFilePath);
 const currentDbFilePath2 = path.resolve(dumpFilePath2);
 
-function sendCorruptedDbInformation(sizeVariation){
+function sendDBInformation(){
   if(!monitoringHost || !monitoringApiPath || !tokenBosRegister) {
     console.error("Monitoring configuration is missing.");
     return;
   }
+  const dbSize = getDBSize();
+  if(dbSize < 0 ){
+    console.error("Failed retrieving the db file size")
+    return;
+  }
+  
+
   const data = JSON.stringify({
     TokenBosRegister: tokenBosRegister,
-    dumpSizeVariation: sizeVariation
+    dumpSize: sizeVariation
   });
   const options = {
     hostname: monitoringHost,
@@ -74,8 +79,8 @@ function sendCorruptedDbInformation(sizeVariation){
   req.end();
 } 
 
-function checkBackupSizeChange() {
-  let currentDbFileSize;
+function getDBSize() {
+  let currentDbFileSize= -1;
   if (!fs.existsSync(currentDbFilePath)) {
     if(!fs.existsSync(currentDbFilePath2)) {
     console.error("Current database file does not exist.");
@@ -88,25 +93,7 @@ function checkBackupSizeChange() {
   else {
     currentDbFileSize = fs.statSync(currentDbFilePath).size;
   }
-
-  // Get the list of backup files
-  const backupFiles = getDumpList();
-  if (backupFiles.length === 0) {
-    console.log("No backup files to compare.");
-    return;
-  }
-
-  const latestBackupSize = backupFiles[0].dumpSize;
-
-  const sizeDifferencePercent = ((latestBackupSize - currentDbFileSize) / currentDbFileSize) * 100;
-
-  if (Math.abs(sizeDifferencePercent) > sizeVariationThreshold ) {
-    console.log("WARNING: Significant difference between the current DB and the last backup detected! (", sizeDifferencePercent, "%)");
-    sendCorruptedDbInformation(Math.abs(sizeDifferencePercent))
-  }
-  else {
-    sendCorruptedDbInformation(Math.abs(sizeDifferencePercent))
-  }
+  return currentDbFileSize;
 }
 
 
@@ -160,8 +147,8 @@ const job = new CronJob('0 */6 * * *', main); // 00:00, 06:00, 12:00, 18:00
 job.start();
 
 if(monitoringHost && monitoringApiPath && tokenBosRegister) {
-  checkBackupSizeChange();
-  const job2 = new CronJob('*/10 * * * *', checkBackupSizeChange); // every 10 minutes
+  sendDBInformation();
+  const job2 = new CronJob('*/10 * * * *', sendDBInformation); // every 10 minutes
   job2.start();
 }
 
