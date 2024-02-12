@@ -52,7 +52,6 @@ function sendCorruptedDbInformation(sizeVariation){
   });
   const options = {
     hostname: monitoringHost,
-    port:5050,
     path: monitoringApiPath,
     method: 'POST',
     headers: {
@@ -60,7 +59,7 @@ function sendCorruptedDbInformation(sizeVariation){
       'Content-Length': data.length
     }
   };
-  const req = http.request(options, (res) => {
+  const req = https.request(options, (res) => {
     console.log(`StatusCode: ${res.statusCode}`);
     res.on('data', (d) => {
 
