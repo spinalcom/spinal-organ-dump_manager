@@ -29,6 +29,8 @@ const CronJob = require('cron').CronJob;
 const https = require('https');
 const http = require('http');
 
+
+const dumpBkpFolderPath = require("./config.js").dumpBkpFolderPath;
 const dumpFilePath = require("./config.js").dumpFilePath;
 const dumpFilePath2 = require("./config.js").dumpFilePath2;
 const monitoringHost= require("./config.js").monitoringHost;

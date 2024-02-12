@@ -26,6 +26,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 module.exports = {
+  dumpBkpFolderPath: process.env.DUMP_FOLDER_PATH || '../../nerve-center/memory/dump.bkp',
   dumpFilePath: process.env.DUMP_FILE_PATH || '../../nerve-center/memory/_dump.db',
   dumpFilePath2: process.env.DUMP_FILE_PATH2 || '../../nerve-center/memory/dump.db',
   monitoringHost: process.env.MONITORING_HOST,
