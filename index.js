@@ -55,7 +55,7 @@ function sendDBInformation(){
 
   const data = JSON.stringify({
     TokenBosRegister: tokenBosRegister,
-    dumpSize: sizeVariation
+    dumpSize: dbSize
   });
   const options = {
     hostname: monitoringHost,
@@ -86,7 +86,7 @@ function getDBSize() {
   if (!fs.existsSync(currentDbFilePath)) {
     if(!fs.existsSync(currentDbFilePath2)) {
     console.error("Current database file does not exist.");
-    return;
+    return -1;
     }
     else {
       currentDbFileSize = fs.statSync(currentDbFilePath2).size;
@@ -95,7 +95,7 @@ function getDBSize() {
   else {
     currentDbFileSize = fs.statSync(currentDbFilePath).size;
   }
-  return currentDbFileSize;
+  return currentDbFileSize/ (1024*1024);
 }
 
 
