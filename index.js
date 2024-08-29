@@ -33,16 +33,30 @@ const folderPath = path.resolve(dumpBkpFolderPath);
 function sortByDateFct(a, b) {
   return b.date.unix() - a.date.unix();
 }
+function unlinkFile(filePath) {
+  console.log(`Deleting file ${filePath}`);
+  fs.unlinkSync(filePath);
+}
 
 function getDumpList() {
   const dumps = fs.readdirSync(folderPath);
+  console.log(`Found ${dumps.length} dump files`);
   const files = [];
   for (const dump of dumps) {
     const dumpPwd = path.resolve(folderPath, dump);
-    const dumpStats = fs.statSync(dumpPwd);
-    const dumpSize = dumpStats.size;
-    if(dumpSize===0) {fs.unlinkSync(dumpPwd); continue;}
-    const date = moment(dump, "[dump_]YYYY-MM-DD_HH-mm-ss[.db]", true);
+    const reg = /(dump_)(?<dump_date>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})(?<dump_size>_\d*)?.db/;
+    const resReg = reg.exec(dump);
+    const dump_date = resReg.groups.dump_date;
+    let dumpSizeString = resReg.groups.dump_size;
+    let dumpSize = 0;
+    if (!dumpSizeString) {
+      const dumpStats = fs.statSync(dumpPwd);
+      dumpSize = dumpStats.size;
+    } else {
+      dumpSize = parseInt(dumpSizeString.slice(1));
+    }
+    if (dumpSize === 0) { unlinkFile(dumpPwd); continue; }
+    const date = moment(dump_date, "YYYY-MM-DD_HH-mm-ss", true);
     if (date.isValid()) files.push({ pwd: dumpPwd, date, dumpSize });
   }
   return files.sort(sortByDateFct);
@@ -63,15 +77,15 @@ function main() {
   let filesToRm = [];
   fileList = getDumpList();
   fileList = fileList.slice(6);
-  for (let i=1; i<4; i++)
-    [fileList, filesToRm] = handler(fileList, filesToRm, (i+1)*6, i*6, 'hours');
-  for (let i=1; i<7; i++)
-    [fileList, filesToRm] = handler(fileList, filesToRm, i+1, i, 'days');
-  while (fileList.length!=0)
-    [fileList, filesToRm] = handler(fileList, filesToRm, m+1, m++, 'months');
-  for (let i=0; i<filesToRm.length; i++)
-    fs.unlinkSync(filesToRm[i].pwd);
-  console.log('done');
+  for (let i = 1; i < 4; i++)
+    [fileList, filesToRm] = handler(fileList, filesToRm, (i + 1) * 6, i * 6, 'hours');
+  for (let i = 1; i < 7; i++)
+    [fileList, filesToRm] = handler(fileList, filesToRm, i + 1, i, 'days');
+  while (fileList.length != 0)
+    [fileList, filesToRm] = handler(fileList, filesToRm, m + 1, m++, 'months');
+  for (let i = 0; i < filesToRm.length; i++)
+    unlinkFile(filesToRm[i].pwd);
+  console.log(`Cleaning done, ${filesToRm.length} files deleted.`);
 }
 
 main();
