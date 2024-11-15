@@ -46,8 +46,8 @@ function getDumpList() {
     const dumpPwd = path.resolve(folderPath, dump);
     const reg = /(dump_)(?<dump_date>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})(?<dump_size>_\d*)?.db/;
     const resReg = reg.exec(dump);
-    const dump_date = resReg.groups.dump_date;
-    let dumpSizeString = resReg.groups.dump_size;
+    const dump_date = resReg?.groups.dump_date;
+    let dumpSizeString = resReg?.groups.dump_size;
     let dumpSize = 0;
     if (!dumpSizeString) {
       const dumpStats = fs.statSync(dumpPwd);
