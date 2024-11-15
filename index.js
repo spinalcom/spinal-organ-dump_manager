@@ -79,7 +79,7 @@ function main() {
   fileList = fileList.slice(6);
   for (let i = 1; i < 4; i++)
     [fileList, filesToRm] = handler(fileList, filesToRm, (i + 1) * 6, i * 6, 'hours');
-  for (let i = 1; i < 7; i++)
+  for (let i = 1; i < 27; i++)
     [fileList, filesToRm] = handler(fileList, filesToRm, i + 1, i, 'days');
   while (fileList.length != 0)
     [fileList, filesToRm] = handler(fileList, filesToRm, m + 1, m++, 'months');
